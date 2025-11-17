@@ -11,9 +11,11 @@ import { PinsModule } from '@pinpoint/resources/pins/pins.module';
 // import { LikesModule } from '@pinpoint/resources/likes/likes.module';
 // import { RatingsModule } from '@pinpoint/resources/ratings/ratings.module';
 import { JwtAuthGuard } from '@pinpoint/auth/guards/jwt-auth.guard';
+import { HealthController } from '@pinpoint/health/health.controller';
 import { DrizzleTursoModuleForRoot } from '@pinpoint/utils/modules';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule,
     DrizzleTursoModuleForRoot,

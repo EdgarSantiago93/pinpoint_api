@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from '@pinpoint/filters/global-exception.filter';
+import { AppModule } from './app.module';
 // import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
@@ -15,7 +15,10 @@ async function bootstrap() {
 
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT || 8080;
+  await app.listen(port, '0.0.0.0').then(() => {
+    console.log(`Server is running on port ${port}`);
+  });
 }
 void bootstrap();
 
