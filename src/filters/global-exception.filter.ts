@@ -1,12 +1,12 @@
-import { validationMessages } from '@pinpoint/utils/validationMessages';
 import {
-  ExceptionFilter,
-  Catch,
   ArgumentsHost,
+  Catch,
+  ExceptionFilter,
   HttpException,
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { validationMessages } from '@pinpoint/utils/validationMessages';
 import { Request, Response } from 'express';
 
 @Catch()
@@ -42,10 +42,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // // Log the error
     console.error(
-      `${request.method} ${request.url} - ${status} - ${message}`,
+      `🟡 ${request.method} ${request.url} - ${status} - ${message}`,
       exception instanceof Error ? exception.stack : undefined,
     );
 
+    console.log({
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      method: request.method,
+      message,
+      error,
+    });
     // Send response
     response.status(status).json({
       statusCode: status,

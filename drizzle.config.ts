@@ -1,7 +1,6 @@
-// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-require-imports
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('dotenv').config();
 
-// drizzle.config.ts
 import { config } from 'dotenv';
 
 // Load environment-specific config

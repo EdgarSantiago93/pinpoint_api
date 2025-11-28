@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthRepository } from '@pinpoint/auth/auth.repository';
+import { PinsModule } from '@pinpoint/resources/pins/pins.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { AuthRepository } from '@pinpoint/auth/auth.repository';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AuthRepository } from '@pinpoint/auth/auth.repository';
         signOptions: { expiresIn: '7d' },
       }),
     }),
+    PinsModule,
   ],
   controllers: [AuthController],
   // providers: [AuthService, JwtStrategy, AuthService],

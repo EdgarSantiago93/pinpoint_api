@@ -12,6 +12,7 @@ import {
   LoginInput,
   UserResponse,
 } from '@pinpoint/auth/types/auth.types';
+import { PinsService } from '@pinpoint/resources/pins/pins.service';
 import { transformAndValidate } from '@pinpoint/utils/schema-transformer';
 import * as argon2 from 'argon2';
 import { z } from 'zod';
@@ -20,9 +21,42 @@ import { z } from 'zod';
 export class AuthService {
   constructor(
     private readonly authRepository: AuthRepository,
+    private readonly pinsService: PinsService,
     private readonly jwtService: JwtService,
   ) {}
 
+  async validateEmail(
+    email: string,
+  ): Promise<{ ok: boolean; action?: string }> {
+    try {
+      const existingUser = await this.authRepository.getUserByEmail(email);
+      console.log('i set up the whole night', existingUser);
+      if (existingUser && existingUser.status === 'inactive') {
+        return {
+          ok: false,
+          action: 'user_inactive_or_deleted',
+        };
+      }
+      if (
+        existingUser &&
+        existingUser.status === 'active' &&
+        existingUser.isDeleted === 0
+      ) {
+        return {
+          ok: true,
+          action: 'user_ok',
+        };
+      }
+
+      return {
+        ok: false,
+        action: 'email_not_found',
+      };
+    } catch (error) {
+      console.log('error', error);
+      throw new BadRequestException('email_validation_failed');
+    }
+  }
   async register(createUserInput: CreateUserInput): Promise<{
     user: UserResponse;
     accessToken: string;
@@ -110,13 +144,22 @@ export class AuthService {
     }
   }
 
-  async me(userId: string): Promise<UserResponse> {
+  async me(
+    userId: string,
+    options?: {
+      includePins?: boolean;
+      includeCollections?: boolean;
+      includeVisitCount?: boolean;
+      includeWishlistCount?: boolean;
+    },
+  ): Promise<UserResponse> {
     try {
       const user = await this.authRepository.getUserById(userId);
       if (!user) {
         throw new UnauthorizedException('user_not_found');
       }
-      return transformAndValidate(
+
+      const userResponse = transformAndValidate(
         userResponseSchema.extend({
           status: z.string(),
           updatedAt: z.date(),
@@ -124,6 +167,37 @@ export class AuthService {
         }),
         user,
       );
+
+      // TODO: Implement fetching of pins, collections, visitCount, wishlistCount
+      // based on the options parameter
+      if (options?.includePins) {
+        // Fetch pins for the user
+        const pinsCount = await this.pinsService.countByUserId(userId);
+        userResponse.pins = pinsCount;
+      }
+
+      if (options?.includeCollections) {
+        // Fetch collections for the user
+        // const collections = await this.collectionsRepository.findByUserId(userId);
+        // userResponse.collections = collections;
+        userResponse.collections = 5;
+      }
+
+      if (options?.includeVisitCount) {
+        // Fetch visit count for the user
+        // const visitCount = await this.visitsRepository.countByUserId(userId);
+        // userResponse.visitCount = visitCount;
+        userResponse.visitCount = 10;
+      }
+
+      if (options?.includeWishlistCount) {
+        // Fetch wishlist count for the user
+        // const wishlistCount = await this.wishlistRepository.countByUserId(userId);
+        // userResponse.wishlistCount = wishlistCount;
+        userResponse.wishlistCount = 20;
+      }
+
+      return userResponse;
     } catch (error) {
       console.log('error', error);
       if (error instanceof UnauthorizedException) {

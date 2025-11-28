@@ -1,0 +1,1 @@
+ALTER TABLE `pin_visits` ADD `created_at` integer NOT NULL;

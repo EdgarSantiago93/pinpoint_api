@@ -1,9 +1,12 @@
+import { pins } from '@pinpoint/database/schema';
+import {
+  createPinSchema,
+  nearbyPinResponseSchema,
+} from '@pinpoint/resources/pins/schemas/pins.schemas';
+import { InferSelectModel } from 'drizzle-orm';
 import { z } from 'zod';
-import { createPinSchema, updatePinSchema, pinQuerySchema } from '../schemas/pins.schemas';
 
 export type CreatePinInput = z.infer<typeof createPinSchema>;
-export type UpdatePinInput = z.infer<typeof updatePinSchema>;
-export type PinQueryInput = z.infer<typeof pinQuerySchema>;
 
 export type PinResponse = {
   id: string;
@@ -30,3 +33,6 @@ export type PinResponse = {
   }>;
 };
 
+export type NearbyPinResponseType = z.infer<typeof nearbyPinResponseSchema>;
+
+export type PinSelectType = InferSelectModel<typeof pins>;

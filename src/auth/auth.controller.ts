@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
@@ -16,13 +17,30 @@ import { Public } from './decorators/public.decorator';
 import {
   createUserSchema,
   loginSchema,
+  meQuerySchema,
   refreshTokenSchema,
+  validateEmailSchema,
 } from './schemas/auth.schemas';
-import { CreateUserInput, LoginInput } from './types/auth.types';
+import {
+  CreateUserInput,
+  LoginInput,
+  MeQueryInput,
+  ValidateEmailInput,
+} from './types/auth.types';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Post('validate-email')
+  async validateEmail(
+    @Body(new ZodValidationPipe(validateEmailSchema))
+    validateEmailInput: ValidateEmailInput,
+  ) {
+    console.log('validateEmailInput', validateEmailInput);
+    return await this.authService.validateEmail(validateEmailInput.email);
+  }
 
   @Public()
   @Post('register')
@@ -50,11 +68,20 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  async getProfile(@CurrentUser() user: JwtPayload) {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    console.log('user', user);
-    return await this.authService.me(user.userId);
+  async getProfile(
+    @CurrentUser() user: JwtPayload,
+    @Query(new ZodValidationPipe(meQuerySchema.partial())) query: MeQueryInput,
+  ) {
+    return await this.authService.me(user.userId, {
+      includePins: query.pins,
+      includeCollections: query.collections,
+      includeVisitCount: query.visitCount,
+      includeWishlistCount: query.wishlistCount,
+    });
   }
+
+  // Test endpoint to simulate invalid token - returns 401
+  // Remove this in production
 
   // @UseGuards(JwtAuthGuard)
   // @Get('profile')

@@ -3,10 +3,15 @@ import { typeidUnboxed } from 'typeid-js';
 export enum Models {
   USER = 'user',
   PIN = 'pin',
-  // TAG = 'tag',
+  MUST_KNOW = 'mk',
+  TAG = 'tag',
+  VISIT = 'visit',
+  TAG_PIN = 'tp',
+  TAG_TRANSLATION = 'tt',
+  FEED_POST = 'fp',
+
   // MEDIA = 'media',
   // COMMENT = 'comment',
-  // VISIT = 'visit',
   // LIKE = 'like',
   // RATING = 'rating',
   // USER_PREFERENCE = 'usp',
@@ -22,7 +27,6 @@ export const validateModel = (modelString: string): boolean => {
 };
 
 export const generateId = (model: Models): string => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   return typeidUnboxed(model) as string;
 };
 

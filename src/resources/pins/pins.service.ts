@@ -1,145 +1,86 @@
-import { Inject, Injectable } from '@nestjs/common';
-import * as schema from '@pinpoint/database/schema';
-import { pins } from '@pinpoint/database/schema/pins';
-import { eq } from 'drizzle-orm';
-import { LibSQLDatabase } from 'drizzle-orm/libsql';
-import { CreatePinInput, PinResponse } from './types/pins.types';
+import { Injectable } from '@nestjs/common';
+import { FeedService } from '@pinpoint/resources/feed/feed.service';
+import { PinsRepository } from '@pinpoint/resources/pins/pins.repository';
+import { nearbyPinResponseSchema } from '@pinpoint/resources/pins/schemas/pins.schemas';
+import {
+  CreatePinInput,
+  NearbyPinResponseType,
+  PinSelectType,
+} from '@pinpoint/resources/pins/types/pins.types';
+import { VisitsService } from '@pinpoint/resources/visits/visits.service';
+import { transformAndValidate } from '@pinpoint/utils/schema-transformer';
 
 @Injectable()
 export class PinsService {
-  constructor(@Inject('DB') private db: LibSQLDatabase<typeof schema>) {}
+  constructor(
+    private readonly pinsRepository: PinsRepository,
+    private readonly visitsService: VisitsService,
+    private readonly feedService: FeedService,
+  ) {}
 
+  async countByUserId(userId: string): Promise<number> {
+    return await this.pinsRepository.countByUserId(userId);
+  }
+
+  async checkIfPinExists(placeId: string): Promise<PinSelectType | undefined> {
+    return await this.pinsRepository.checkIfPinExists(placeId);
+  }
+
+  ///
   async create(
     userId: string,
     createPinInput: CreatePinInput,
-  ): Promise<PinResponse> {
-    // Store types as JSON string in url field (temporary)
-    // TODO: Add dedicated fields for aspects, musts, and types in the schema
-    const typesJson = createPinInput.types
-      ? JSON.stringify(createPinInput.types)
-      : null;
+    // ): Promise<PinResponse> {PinSelectType
+  ): Promise<any> {
+    // console.log('1createPinInput', createPinInput);
 
-    // Store aspects and musts in category as JSON (temporary solution)
-    // TODO: Add proper fields for aspects and musts
-    const categoryWithMetadata =
-      createPinInput.aspects || createPinInput.musts
-        ? JSON.stringify({
-            category: createPinInput.category || null,
-            aspects: createPinInput.aspects || [],
-            musts: createPinInput.musts || [],
-          })
-        : createPinInput.category || null;
-
-    const [pin] = await this.db
-      .insert(pins)
-      .values({
-        title: createPinInput.title,
-        description: createPinInput.description || null,
-        address: createPinInput.address || null,
-        latitude: createPinInput.latitude || null,
-        longitude: createPinInput.longitude || null,
-        category: categoryWithMetadata,
-        rating: createPinInput.rating || null,
-        color: createPinInput.color || null,
-        label: createPinInput.label || null, // Icon name
-        url: typesJson, // Temporarily store types in url field
-        createdById: userId,
-      })
-      .returning();
-
-    // Fetch the created pin with user data
-    const createdPin = await this.db.query.pins.findFirst({
-      where: eq(pins.id, pin.id),
-      with: {
-        createdBy: true,
-      },
-    });
-
-    if (!createdPin) {
-      throw new Error('Failed to create pin');
+    if (createPinInput.placeData?.placeId) {
+      const pinExists = await this.checkIfPinExists(
+        createPinInput.placeData.placeId,
+      );
+      if (pinExists) {
+        return pinExists;
+      }
     }
 
-    // Get user data separately if not included in relation
-    const user = createdPin.createdBy
-      ? createdPin.createdBy
-      : await this.db.query.users.findFirst({
-          where: eq(schema.users.id, pin.createdById),
-        });
+    const pin = await this.pinsRepository.createPin(userId, createPinInput);
 
-    return {
-      id: createdPin.id,
-      title: createdPin.title,
-      description: createdPin.description || undefined,
-      address: createdPin.address || undefined,
-      latitude: createdPin.latitude || undefined,
-      longitude: createdPin.longitude || undefined,
-      category: createdPin.category || undefined,
-      rating: createdPin.rating || undefined,
-      createdById: createdPin.createdById,
-      createdAt: createdPin.createdAt,
-      updatedAt: createdPin.updatedAt,
-      createdBy: user
-        ? {
-            id: user.id,
-            username: user.username,
-            name: user.name || undefined,
-            avatar: user.avatar || undefined,
-          }
-        : undefined,
-      tags: [], // TODO: Implement tags relationship
-    };
+    if (pin) {
+      console.log('🟢🟢🟢🟢🟢🟢inserting visit', pin.id);
+      await this.visitsService.create(userId, {
+        pinId: pin.id,
+        visitedAt: createPinInput.visitDate
+          ? typeof createPinInput.visitDate === 'string'
+            ? createPinInput.visitDate
+            : createPinInput.visitDate.toISOString()
+          : new Date().toISOString(),
+      });
+
+      console.log('🏈🏈🏈🏈🏈🏈inserting feed post', pin.id);
+      await this.feedService.createFeedPost(pin);
+    }
+    return pin;
   }
 
-  // findAll(_query: PinQueryInput): PinResponse[] {
-  //   void _query;
-  //   return [];
-  // }
+  async findNearby(
+    latitude: number,
+    longitude: number,
+    radius: number = 5000,
+    limit: number = 50,
+  ): Promise<NearbyPinResponseType[]> {
+    const nearbyPins = await this.pinsRepository.findNearbyPins(
+      latitude,
+      longitude,
+      radius,
+      limit,
+    );
 
-  // // findOne(_id: string): PinResponse {
-  // findOne(_id: string): any {
-  //   void _id;
-  //   return {};
-  // }
+    return nearbyPins.map((pin) =>
+      transformAndValidate(nearbyPinResponseSchema, pin),
+    );
+  }
 
-  // update(
-  //   _id: string,
-  //   _userId: string,
-  //   _updatePinInput: UpdatePinInput,
-  // ): PinResponse {
-  //   void _id;
-  //   void _userId;
-  //   void _updatePinInput;
-  //   return {
-  //     id: '',
-  //     title: '',
-  //     description: '',
-  //     address: '',
-  //     latitude: 0,
-  //     longitude: 0,
-  //     category: '',
-  //     rating: 0,
-  //     createdById: '',
-  //     createdAt: new Date(),
-  //     updatedAt: new Date(),
-  //     createdBy: {
-  //       id: '',
-  //       username: '',
-  //       name: '',
-  //       avatar: '',
-  //     },
-  //     tags: [],
-  //   };
-  // }
-
-  // remove(_id: string, _userId: string): void {
-  //   void _id;
-  //   void _userId;
-  //   return;
-  // }
-
-  // search(_searchTerm: string, _query: PinQueryInput): PinResponse[] {
-  //   void _searchTerm;
-  //   void _query;
-  //   return [];
-  // }
+  async findOne(pinId: string) {
+    return await this.pinsRepository.findById(pinId);
+  }
 }
