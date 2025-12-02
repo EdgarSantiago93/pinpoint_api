@@ -46,14 +46,12 @@ export class PinsController {
       limit?: number;
     },
   ): Promise<NearbyPinResponseType[]> {
-    console.log('findNearby', Date.now());
     const nearbyPins = await this.pinsService.findNearby(
       query.latitude,
       query.longitude,
       query.radius,
       query.limit,
     );
-    console.log('findNearby', nearbyPins.length);
     return nearbyPins;
   }
 
